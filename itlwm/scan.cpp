@@ -216,7 +216,6 @@ iwm_umac_scan_fill_channels(struct iwm_softc *sc,
 int itlwm::
 iwm_fill_probe_req_v1(struct iwm_softc *sc, struct iwm_scan_probe_req_v1 *preq1)
 {
-    XYLog("%s\n", __FUNCTION__);
     struct iwm_scan_probe_req preq2;
     int err, i;
     
@@ -235,7 +234,6 @@ iwm_fill_probe_req_v1(struct iwm_softc *sc, struct iwm_scan_probe_req_v1 *preq1)
 int itlwm::
 iwm_fill_probe_req(struct iwm_softc *sc, struct iwm_scan_probe_req *preq)
 {
-    XYLog("%s\n", __FUNCTION__);
     struct ieee80211com *ic = &sc->sc_ic;
     struct ifnet *ifp = IC2IFP(ic);
     struct ieee80211_frame *wh = (struct ieee80211_frame *)preq->buf;
@@ -329,7 +327,6 @@ iwm_fill_probe_req(struct iwm_softc *sc, struct iwm_scan_probe_req *preq)
 int itlwm::
 iwm_lmac_scan(struct iwm_softc *sc, int bgscan)
 {
-    XYLog("%s\n", __FUNCTION__);
     struct ieee80211com *ic = &sc->sc_ic;
     struct iwm_host_cmd hcmd = {
         .id = IWM_SCAN_OFFLOAD_REQUEST_CMD,
@@ -422,7 +419,7 @@ iwm_lmac_scan(struct iwm_softc *sc, int bgscan)
                                              sc->sc_capa_n_scan_channels));
     err = iwm_fill_probe_req_v1(sc, preq);
     if (err) {
-        free(req);
+        ::free(req);
         return err;
     }
     
@@ -435,7 +432,7 @@ iwm_lmac_scan(struct iwm_softc *sc, int bgscan)
     req->channel_opt[1].non_ebs_ratio = 1;
     
     err = iwm_send_cmd(sc, &hcmd);
-    free(req);
+    ::free(req);
     return err;
 }
 
@@ -510,7 +507,7 @@ iwm_config_umac_scan(struct iwm_softc *sc)
     hcmd.len[0] = cmd_size;
     
     err = iwm_send_cmd(sc, &hcmd);
-    free(scan_config);
+    ::free(scan_config);
     return err;
 }
 
@@ -718,7 +715,7 @@ iwm_umac_scan(struct iwm_softc *sc, int bgscan)
     else
         err = iwm_fill_probe_req_v1(sc, &tailv1->preq);
     if (err) {
-        free(req);
+        ::free(req);
         return err;
     }
     
@@ -727,7 +724,7 @@ iwm_umac_scan(struct iwm_softc *sc, int bgscan)
     tail->schedule[0].iter_count = 1;
     
     err = iwm_send_cmd(sc, &hcmd);
-    free(req);
+    ::free(req);
     return err;
 }
 

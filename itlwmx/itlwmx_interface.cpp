@@ -12,12 +12,12 @@
 * GNU General Public License for more details.
 */
 
-#include "itlwm_interface.hpp"
+#include "itlwmx_interface.hpp"
 
 #define super IOEthernetInterface
-OSDefineMetaClassAndStructors( itlwm_interface, IOEthernetInterface )
+OSDefineMetaClassAndStructors( itlwmx_interface, IOEthernetInterface )
 
-bool itlwm_interface::init(IONetworkController *controller)
+bool itlwmx_interface::init(IONetworkController *controller)
 {
     if (!super::init(controller))
         return false;
@@ -25,7 +25,7 @@ bool itlwm_interface::init(IONetworkController *controller)
     return true;
 }
 
-bool itlwm_interface::setMaxTransferUnit(UInt32 mtu) {
+bool itlwmx_interface::setMaxTransferUnit(UInt32 mtu) {
     IOLog("itlwm setting MTU to %d\n", mtu);
     if (mtu > ETHERNET_MTU) {
         return false;
@@ -34,7 +34,7 @@ bool itlwm_interface::setMaxTransferUnit(UInt32 mtu) {
     return true;
 }
 
-void itlwm_interface::free()
+void itlwmx_interface::free()
 {
     super::free();
 }

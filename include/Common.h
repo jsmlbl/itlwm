@@ -45,6 +45,13 @@ struct ioctl_sta_info {
     enum itl_phy_mode op_mode;
     int max_mcs;
     int cur_mcs;
+    uint channel;
+    uint16_t band_width;//20 40 80 160
+    int16_t rssi;
+    int16_t noise;
+    uint rate;
+    unsigned char ssid[NWID_LEN];
+    uint8_t bssid[ETHER_ADDR_LEN];
 };
 
 struct ioctl_power {
@@ -86,10 +93,13 @@ struct ioctl_associate {
 
 struct ioctl_disassociate {
     unsigned int version;
+    unsigned char ssid[NWID_LEN];
 };
 
 struct ioctl_join {
     unsigned int version;
+    struct ioctl_nw_id nwid;
+    struct ioctl_wpa_key wpa_key;
 };
 
 struct ioctl_scan {
@@ -140,10 +150,10 @@ enum itl80211_akm {
 };
 
 struct ioctl_network_info {
-    unsigned char ssid[32];
+    unsigned char ssid[NWID_LEN];
     int16_t noise;
     int16_t rssi;
-    uint8_t bssid[6];
+    uint8_t bssid[ETHER_ADDR_LEN];
     uint32_t channel;
     unsigned int supported_rsnprotos;   //itl80211_proto
     unsigned int rsn_protos;    //itl80211_wpa_proto

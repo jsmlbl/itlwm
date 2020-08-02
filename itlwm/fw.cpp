@@ -211,7 +211,7 @@ iwm_set_default_calib(struct iwm_softc *sc, const void *data)
 void itlwm::
 iwm_fw_info_free(struct iwm_fw_info *fw)
 {
-    free(fw->fw_rawdata);
+    ::free(fw->fw_rawdata);
     fw->fw_rawdata = NULL;
     fw->fw_rawsize = 0;
     /* don't touch fw->fw_status */
@@ -287,7 +287,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
     fw->fw_rawdata = malloc(fwData->getLength(), 1, 1);
     memcpy(fw->fw_rawdata, (u_char*)fwData->getBytesNoCopy(), fwData->getLength());
     fw->fw_rawsize = fwData->getLength();
-    XYLog("load firmware done\n");
+    XYLog("load firmware %s done\n", sc->sc_fwname);
     sc->sc_capaflags = 0;
     sc->sc_capa_n_scan_channels = IWM_DEFAULT_SCAN_CHANNELS;
     memset(sc->sc_enabled_capa, 0, sizeof(sc->sc_enabled_capa));

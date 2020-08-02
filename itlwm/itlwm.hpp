@@ -70,8 +70,13 @@ public:
     
     void releaseAll();
     void joinSSID(const char *ssid, const char *pwd);
+    void associateSSID(const char *ssid, const char *pwd);
     
     bool initPCIPowerManagment(IOPCIDevice *provider);
+    
+    struct ifnet *getIfp();
+    struct iwm_softc *getSoft();
+    IOEthernetInterface *getNetworkInterface();
     
     //-----------------------------------------------------------------------
     // Power management support.
@@ -85,13 +90,12 @@ public:
     void unregistPM();
     
     bool createMediumTables(const IONetworkMedium **primary);
-    IOReturn getPacketFilters(const OSSymbol *group, UInt32 *filters) const override;
-    IOReturn selectMedium(const IONetworkMedium *medium) override;
+    virtual IOReturn getPacketFilters(const OSSymbol *group, UInt32 *filters) const override;
+    virtual IOReturn selectMedium(const IONetworkMedium *medium) override;
 //    UInt32 getFeatures() const override;
     
     //utils
-    static void *malloc(vm_size_t len, int type, int how);
-    static void free(void* addr);
+    int    iwm_send_bt_init_conf(struct iwm_softc *);
     
     //fw
     uint8_t iwm_fw_valid_tx_ant(struct iwm_softc *sc);
@@ -342,7 +346,6 @@ public:
     void    iwm_fill_sf_command(struct iwm_softc *, struct iwm_sf_cfg_cmd *,
             struct ieee80211_node *);
     int    iwm_sf_config(struct iwm_softc *, int);
-    int    iwm_send_bt_init_conf(struct iwm_softc *);
     int    iwm_send_update_mcc_cmd(struct iwm_softc *, const char *);
     void    iwm_tt_tx_backoff(struct iwm_softc *, uint32_t);
     int iwm_fill_paging_mem(struct iwm_softc *, const struct iwm_fw_sects *);
@@ -391,6 +394,7 @@ public:
     IONetworkStats *fpNetStats;
     itlwm_interface *fNetIf;
     void *lastSleepChan;
+    IOWorkLoop *fWatchdogWorkLoop;
     
     IOLock *fwLoadLock;
     semaphore_t outputThreadSignal;

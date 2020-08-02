@@ -66,6 +66,7 @@
 #include <sys/_arc4random.h>
 #include <sys/_task.h>
 #include <sys/_ifq.h>
+#include <sys/_malloc.h>
 
 #include <sys/kpi_mbuf.h>
 #include <net80211/ieee80211.h>
@@ -418,6 +419,8 @@ struct ieee80211com {
 	void			(*ic_update_htprot)(struct ieee80211com *,
 					struct ieee80211_node *);
 	int			(*ic_bgscan_start)(struct ieee80211com *);
+    /* The channel width has changed (20<->2040) */
+    void            (*ic_update_chw)(struct ieee80211com *);
 	CTimeout*		ic_bgscan_timeout;
 	uint32_t		ic_bgscan_fail;
 	u_int8_t		ic_myaddr[IEEE80211_ADDR_LEN];
@@ -431,6 +434,7 @@ struct ieee80211com {
 	u_int8_t		ic_scan_count;	/* count scans */
 	u_int32_t		ic_flags;	/* state flags */
 	u_int32_t		ic_xflags;	/* more flags */
+    
 	u_int32_t		ic_userflags;	/* yet more flags */
 	u_int32_t		ic_caps;	/* capabilities */
 	u_int16_t		ic_modecaps;	/* set of mode capabilities */
@@ -523,6 +527,14 @@ struct ieee80211com {
 	u_int8_t		ic_aselcaps;
 	u_int8_t		ic_dialog_token;
 	int			ic_fixed_mcs;
+    uint64_t        ic_last_cache_scan_ts;
+    
+    ///add
+    uint32_t        ic_flags_vht;    /* VHT state flags */
+    uint32_t        ic_flags_ht;    /* HT state flags */
+    ///end add
+    
+    
 	TAILQ_HEAD(, ieee80211_ess)	 ic_ess;
 };
 #define	ic_if		ic_ac.ac_if
@@ -645,6 +657,7 @@ void	ieee80211_set_ess(struct ieee80211com *, struct ieee80211_ess *,
 	    struct ieee80211_node *);
 void    ieee80211_deselect_ess(struct ieee80211com *);
 struct ieee80211_ess *ieee80211_get_ess(struct ieee80211com *, const char *, int);
+void ieee80211_begin_cache_bgscan(struct ifnet *);
 
 extern	int ieee80211_cache_size;
 

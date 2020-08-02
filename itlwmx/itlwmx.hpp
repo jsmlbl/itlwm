@@ -16,6 +16,7 @@
 #include "compat.h"
 #include "kernel.h"
 
+#include "itlwmx_interface.hpp"
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
@@ -43,6 +44,13 @@
 #include <libkern/c++/OSMetaClass.h>
 #include <IOKit/IOFilterInterruptEventSource.h>
 
+enum
+{
+    kPowerStateOff = 0,
+    kPowerStateOn,
+    kPowerStateCount
+};
+
 class itlwmx : public IOEthernetController {
     OSDeclareDefaultStructors(itlwmx)
     
@@ -61,6 +69,11 @@ public:
     IOReturn setPromiscuousMode(IOEnetPromiscuousMode mode) override;
     IOReturn setMulticastMode(IOEnetMulticastMode mode) override;
     IOReturn setMulticastList(IOEthernetAddress* addr, UInt32 len) override;
+    virtual const OSString * newVendorString() const override;
+    virtual const OSString * newModelString() const override;
+    virtual IOReturn getMaxPacketSize(UInt32* maxSize) const override;
+    virtual IONetworkInterface * createInterface() override;
+    
     bool configureInterface(IONetworkInterface *netif) override;
     static IOReturn tsleepHandler(OSObject* owner, void* arg0 = 0, void* arg1 = 0, void* arg2 = 0, void* arg3 = 0);
     int tsleep_nsec(void *ident, int priority, const char *wmesg, int timo);
@@ -72,20 +85,32 @@ public:
     void watchdogAction(IOTimerEventSource *timer);
     static IOReturn _iwx_start_task(OSObject *target, void *arg0, void *arg1, void *arg2, void *arg3);
     
+    virtual IOReturn getPacketFilters(const OSSymbol *group, UInt32 *filters) const override;
     bool createMediumTables(const IONetworkMedium **primary);
-    IOReturn selectMedium(const IONetworkMedium *medium) override;
+    virtual IOReturn selectMedium(const IONetworkMedium *medium) override;
+    
+    bool initPCIPowerManagment(IOPCIDevice *provider);
     
     struct ifnet *getIfp();
     struct iwx_softc *getSoft();
     IOEthernetInterface *getNetworkInterface();
+    
+    //-----------------------------------------------------------------------
+    // Power management support.
+    //-----------------------------------------------------------------------
+    virtual IOReturn registerWithPolicyMaker( IOService * policyMaker ) override;
+    virtual IOReturn setPowerState( unsigned long powerStateOrdinal,
+                                    IOService *   policyMaker) override;
+    virtual IOReturn setWakeOnMagicPacket( bool active ) override;
+    void setPowerStateOff(void);
+    void setPowerStateOn(void);
+    void unregistPM();
     
     void releaseAll();
     void joinSSID(const char *ssid, const char *pwd);
     void associateSSID(const char *ssid, const char *pwd);
     
     //utils
-    static void *malloc(vm_size_t len, int type, int how);
-    static void free(void* addr);
     static void *mallocarray(size_t, size_t, int, int);
     
     static void onLoadFW(OSKextRequestTag requestTag, OSReturn result, const void *resourceData, uint32_t resourceDataLength, void *context);
@@ -143,6 +168,7 @@ public:
     void    iwx_ict_reset(struct iwx_softc *);
     int    iwx_set_hw_ready(struct iwx_softc *);
     int    iwx_prepare_card_hw(struct iwx_softc *);
+    void    iwx_force_power_gating(struct iwx_softc *);
     void    iwx_apm_config(struct iwx_softc *);
     int    iwx_apm_init(struct iwx_softc *);
     void    iwx_apm_stop(struct iwx_softc *);
@@ -161,10 +187,6 @@ public:
     void    iwx_protect_session(struct iwx_softc *, struct iwx_node *, uint32_t,
             uint32_t);
     void    iwx_unprotect_session(struct iwx_softc *, struct iwx_node *);
-    int    iwx_nvm_read_chunk(struct iwx_softc *, uint16_t, uint16_t, uint16_t,
-            uint8_t *, uint16_t *);
-    int    iwx_nvm_read_section(struct iwx_softc *, uint16_t, uint8_t *,
-            uint16_t *, size_t);
     uint8_t iwx_fw_valid_tx_ant(struct iwx_softc *sc);
     uint8_t iwx_fw_valid_rx_ant(struct iwx_softc *sc);
     void    iwx_init_channel_map(struct iwx_softc *, uint16_t *, uint32_t *, int);
@@ -186,17 +208,9 @@ public:
     #endif
     static void    iwx_ba_task(void *);
 
-    int    iwx_parse_nvm_data(struct iwx_softc *, const uint16_t *,
-            const uint16_t *, const uint16_t *,
-            const uint16_t *, const uint16_t *,
-            const uint16_t *, int);
     int    iwx_set_mac_addr_from_csr(struct iwx_softc *, struct iwx_nvm_data *);
     int    iwx_is_valid_mac_addr(const uint8_t *);
     int    iwx_nvm_get(struct iwx_softc *);
-    void    iwx_set_hw_address_8000(struct iwx_softc *, struct iwx_nvm_data *,
-            const uint16_t *, const uint16_t *);
-    int    iwx_parse_nvm_sections(struct iwx_softc *, struct iwx_nvm_section *);
-    int    iwx_nvm_init(struct iwx_softc *);
     int    iwx_load_firmware(struct iwx_softc *);
     int    iwx_start_fw(struct iwx_softc *);
     int    iwx_send_tx_ant_cfg(struct iwx_softc *, uint8_t);
@@ -211,13 +225,14 @@ public:
     void    iwx_rx_rx_phy_cmd(struct iwx_softc *, struct iwx_rx_packet *,
             struct iwx_rx_data *);
     int    iwx_get_noise(const struct iwx_statistics_rx_non_phy *);
-    void    iwx_rx_frame(struct iwx_softc *, mbuf_t, int, int, int, uint32_t,
-            struct ieee80211_rxinfo *, struct mbuf_list *);
+    int    iwx_ccmp_decap(struct iwx_softc *, mbuf_t,
+           struct ieee80211_node *);
+    void    iwx_rx_frame(struct iwx_softc *, mbuf_t, int, uint32_t, int, int,
+           uint32_t, struct ieee80211_rxinfo *, struct mbuf_list *);
     void iwx_rx_mpdu_mq(struct iwx_softc *sc, mbuf_t m, void *pktdata,
                         size_t maxlen, struct mbuf_list *ml);
-    void    iwx_enable_ht_cck_fallback(struct iwx_softc *, struct iwx_node *);
     void    iwx_rx_tx_cmd_single(struct iwx_softc *, struct iwx_rx_packet *,
-            struct iwx_node *, int, int);
+            struct iwx_node *);
     void iwx_txd_done(struct iwx_softc *sc, struct iwx_tx_data *txd);
     void    iwx_rx_tx_cmd(struct iwx_softc *, struct iwx_rx_packet *,
             struct iwx_rx_data *);
@@ -239,7 +254,7 @@ public:
     void    iwx_cmd_done(struct iwx_softc *, int, int, int);
     const struct iwx_rate *iwx_tx_fill_cmd(struct iwx_softc *, struct iwx_node *,
             struct ieee80211_frame *, struct iwx_tx_cmd_gen2 *);
-    void    iwx_tx_update_byte_tbl(struct iwx_tx_ring *, uint16_t, uint16_t);
+    void    iwx_tx_update_byte_tbl(struct iwx_tx_ring *, int, uint16_t, uint16_t);
     int    iwx_tx(struct iwx_softc *, mbuf_t, struct ieee80211_node *, int);
     int    iwx_flush_tx_path(struct iwx_softc *);
     int    iwx_beacon_filter_send_cmd(struct iwx_softc *,
@@ -280,6 +295,10 @@ public:
     static int    iwx_bgscan(struct ieee80211com *);
     int    iwx_umac_scan_abort(struct iwx_softc *);
     int    iwx_scan_abort(struct iwx_softc *);
+    int    iwx_rs_rval2idx(uint8_t);
+    uint16_t iwx_rs_ht_rates(struct iwx_softc *, struct ieee80211_node *, int);
+    int    iwx_rs_init(struct iwx_softc *, struct iwx_node *);
+    void iwx_rs_update(struct iwx_softc *sc, struct iwx_tlc_update_notif *notif);
     int    iwx_enable_data_tx_queues(struct iwx_softc *);
     int    iwx_auth(struct iwx_softc *);
     int    iwx_deauth(struct iwx_softc *);
@@ -288,7 +307,10 @@ public:
     int    iwx_run(struct iwx_softc *);
     int    iwx_run_stop(struct iwx_softc *);
     static struct ieee80211_node *iwx_node_alloc(struct ieee80211com *);
-    static void    iwx_calib_timeout(void *);
+    static int    iwx_set_key(struct ieee80211com *, struct ieee80211_node *,
+           struct ieee80211_key *);
+    static void    iwx_delete_key(struct ieee80211com *,
+           struct ieee80211_node *, struct ieee80211_key *);
     int    iwx_media_change(struct ifnet *);
     static void    iwx_newstate_task(void *);
     static int    iwx_newstate(struct ieee80211com *, enum ieee80211_state, int);
@@ -299,6 +321,7 @@ public:
     int    iwx_send_bt_init_conf(struct iwx_softc *);
     int    iwx_send_soc_conf(struct iwx_softc *);
     int    iwx_send_update_mcc_cmd(struct iwx_softc *, const char *);
+    int    iwx_send_temp_report_ths_cmd(struct iwx_softc *);
     int    iwx_init_hw(struct iwx_softc *);
     int    iwx_init(struct ifnet *);
     static void    iwx_start(struct ifnet *);
@@ -327,10 +350,21 @@ public:
     IOTimerEventSource *watchdogTimer;
     struct pci_attach_args pci;
     struct iwx_softc com;
+    itlwmx_interface *fNetIf;
     IONetworkStats *fpNetStats;
+    IOWorkLoop *fWatchdogWorkLoop;
     
     IOLock *_fwLoadLock;
     void *lastSleepChan;
+    
+    //pm
+    thread_call_t powerOnThreadCall;
+    thread_call_t powerOffThreadCall;
+    UInt32 pmPowerState;
+    IOService *pmPolicyMaker;
+    UInt8 pmPCICapPtr;
+    bool magicPacketEnabled;
+    bool magicPacketSupported;
 };
 
 struct ResourceCallbackContext

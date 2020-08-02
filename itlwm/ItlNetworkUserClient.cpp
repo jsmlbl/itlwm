@@ -43,7 +43,7 @@ bool ItlNetworkUserClient::start(IOService *provider)
 //    IOLog("start\n");
     if( !super::start( provider ))
         return false;
-    fDriver = OSDynamicCast(itlwmx, provider);
+    fDriver = OSDynamicCast(itlwm, provider);
     fInf = fDriver->getNetworkInterface();
     fIfp = fDriver->getIfp();
     fSoft = fDriver->getSoft();
@@ -124,7 +124,7 @@ sSTA_INFO(OSObject* target, void* data, bool isSet)
     st->channel = ieee80211_chan2ieee(&that->fSoft->sc_ic, ic_bss->ni_chan);
     //TODO only support 20mhz band width now
     st->band_width = 20;
-    st->rssi = -(0 - IWX_MIN_DBM - ic_bss->ni_rssi);
+    st->rssi = -(0 - IWM_MIN_DBM - ic_bss->ni_rssi);
     st->noise = that->fSoft->sc_noise;
     st->rate = ic_bss->ni_rates.rs_rates[ic_bss->ni_txrate];
     memset(st->ssid, 0, sizeof(st->ssid));
@@ -195,10 +195,10 @@ sDISASSOCIATE(OSObject* target, void* data, bool isSet)
     ItlNetworkUserClient *that = OSDynamicCast(ItlNetworkUserClient, target);
     struct ioctl_disassociate *dis = (struct ioctl_disassociate *)data;
     struct ieee80211com *ic = &that->fSoft->sc_ic;
-    that->fDriver->iwx_stop(&ic->ic_ac.ac_if);
+    that->fDriver->iwm_stop(&ic->ic_ac.ac_if);
     ieee80211_del_ess(ic, (char *)dis->ssid, strlen((char *)dis->ssid), 0);
     ieee80211_deselect_ess(&that->fSoft->sc_ic);
-    that->fDriver->iwx_add_task(that->fSoft, systq, &that->fSoft->init_task);
+    that->fDriver->iwm_add_task(that->fSoft, systq, &that->fSoft->init_task);
     return kIOReturnSuccess;
 }
 
@@ -249,7 +249,7 @@ sSCAN_RESULT(OSObject* target, void* data, bool isSet)
     ni->supported_rsnakms = that->fNextNodeToSend->ni_supported_rsnakms;
     ni->supported_rsnprotos = that->fNextNodeToSend->ni_supported_rsnprotos;
     ni->noise = 0;
-    ni->rssi = -(0 - IWX_MIN_DBM - that->fNextNodeToSend->ni_rssi);
+    ni->rssi = -(0 - IWM_MIN_DBM - that->fNextNodeToSend->ni_rssi);
     memcpy(ni->bssid, that->fNextNodeToSend->ni_bssid, 6);
     memcpy(ni->ssid, that->fNextNodeToSend->ni_essid, 32);
     that->fNextNodeToSend = RB_NEXT(ieee80211_tree, &ic->ic_tree, that->fNextNodeToSend);
